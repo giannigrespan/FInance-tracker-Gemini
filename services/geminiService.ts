@@ -27,15 +27,15 @@ export const parseReceiptImage = async (base64Image: string): Promise<Partial<Tr
           },
         ],
       },
-      config: {
-        responseMimeType: "application/json",
-      }
+      // Fix: responseMimeType is not supported for gemini-2.5-flash-image (nano banana series), so we removed the config.
     });
 
     const text = response.text;
     if (!text) throw new Error("No response from Gemini");
 
-    const data = JSON.parse(text);
+    // Fix: Clean potential Markdown code blocks since responseMimeType cannot be enforced
+    const cleanedText = text.replace(/```(?:json)?|```/g, '').trim();
+    const data = JSON.parse(cleanedText);
 
     // Map string category to Enum
     let category = Category.OTHER;
