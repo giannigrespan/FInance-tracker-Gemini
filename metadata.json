@@ -1,0 +1,8 @@
+{
+  "name": "FamilyFinance AI",
+  "description": "Smart family finance tracking with AI-powered receipt scanning and financial insights.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
