@@ -1,15 +1,24 @@
 import { GoogleGenAI } from "@google/genai";
 import { Transaction, Category, TransactionType, SplitType } from "../types";
 
-// Initialize Gemini Client
-// NOTE: API Key must be provided in the environment variable process.env.API_KEY
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Helper to get initialized client safely
+const getAIClient = () => {
+  const apiKey = process.env.API_KEY;
+  if (!apiKey) {
+    console.warn("Gemini API Key is missing. AI features will not work.");
+    return null;
+  }
+  return new GoogleGenAI({ apiKey });
+};
 
 /**
  * Parses a receipt image using Gemini 2.5 Flash Image Model.
  */
 export const parseReceiptImage = async (base64Image: string): Promise<Partial<Transaction>> => {
   try {
+    const ai = getAIClient();
+    if (!ai) throw new Error("API Key is missing. Please configure your API_KEY.");
+
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',
       contents: {
@@ -17,7 +26,7 @@ export const parseReceiptImage = async (base64Image: string): Promise<Partial<Tr
           {
             inlineData: {
               data: base64Image,
-              mimeType: 'image/jpeg', // Assuming JPEG for simplicity, can be dynamic
+              mimeType: 'image/jpeg', // Assuming JPEG for simplicity
             },
           },
           {
@@ -27,13 +36,12 @@ export const parseReceiptImage = async (base64Image: string): Promise<Partial<Tr
           },
         ],
       },
-      // Fix: responseMimeType is not supported for gemini-2.5-flash-image (nano banana series), so we removed the config.
     });
 
     const text = response.text;
     if (!text) throw new Error("No response from Gemini");
 
-    // Fix: Clean potential Markdown code blocks since responseMimeType cannot be enforced
+    // Clean potential Markdown code blocks
     const cleanedText = text.replace(/```(?:json)?|```/g, '').trim();
     const data = JSON.parse(cleanedText);
 
@@ -51,9 +59,9 @@ export const parseReceiptImage = async (base64Image: string): Promise<Partial<Tr
       date: data.date || new Date().toISOString().split('T')[0],
       amount: data.amount,
       category: category,
-      type: TransactionType.EXPENSE, // Receipts are usually expenses
-      payer: 'ME', // Default assumption
-      splitType: SplitType.SHARED // Default assumption
+      type: TransactionType.EXPENSE,
+      payer: 'ME', 
+      splitType: SplitType.SHARED
     };
 
   } catch (error) {
@@ -67,6 +75,9 @@ export const parseReceiptImage = async (base64Image: string): Promise<Partial<Tr
  */
 export const getFinancialAdvice = async (transactions: Transaction[]): Promise<string> => {
   try {
+    const ai = getAIClient();
+    if (!ai) return "AI Configuration missing. Please set your API Key.";
+
     const summary = JSON.stringify(transactions.slice(0, 50)); // Limit context size
 
     const response = await ai.models.generateContent({
@@ -83,6 +94,6 @@ export const getFinancialAdvice = async (transactions: Transaction[]): Promise<s
     return response.text || "Could not generate advice at this time.";
   } catch (error) {
     console.error("Error generating advice:", error);
-    return "AI Advisor is currently unavailable. Please check your API Key.";
+    return "Unable to generate advice currently. Please try again later.";
   }
 };
