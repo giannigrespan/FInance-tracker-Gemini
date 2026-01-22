@@ -15,7 +15,9 @@ import {
   Users,
   User,
   Gift,
-  ArrowRightLeft
+  ArrowRightLeft,
+  LogOut,
+  ShieldAlert
 } from 'lucide-react';
 
 export { 
@@ -35,5 +37,7 @@ export {
   Users,
   User,
   Gift,
-  ArrowRightLeft
+  ArrowRightLeft,
+  LogOut,
+  ShieldAlert
 };

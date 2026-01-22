@@ -6,11 +6,13 @@ import {
 import { 
   LayoutDashboard, Receipt, TrendingUp, TrendingDown, 
   Wallet, Plus, Trash2, Sparkles, Calendar, Loader2,
-  Users, User, Gift, ArrowRightLeft
+  Users, User, Gift, ArrowRightLeft, LogOut
 } from './components/Icons';
 import TransactionModal from './components/TransactionModal';
+import { LoginScreen } from './components/LoginScreen';
 import { Transaction, TransactionType, Category, FinancialSummary, SplitType, Payer } from './types';
 import { getFinancialAdvice } from './services/geminiService';
+import { googleLogout } from '@react-oauth/google';
 
 // Mock Data for initial state with new fields
 const INITIAL_TRANSACTIONS: Transaction[] = [
@@ -21,7 +23,19 @@ const INITIAL_TRANSACTIONS: Transaction[] = [
   { id: '5', date: '2023-10-29', merchant: 'Utilities', amount: 150.00, type: TransactionType.EXPENSE, category: Category.UTILITIES, payer: 'PARTNER', splitType: SplitType.SHARED },
 ];
 
+interface AuthUser {
+  email: string;
+  name: string;
+}
+
 const App: React.FC = () => {
+  // Auth State
+  const [user, setUser] = useState<AuthUser | null>(() => {
+    const saved = localStorage.getItem('familyfinance_user');
+    return saved ? JSON.parse(saved) : null;
+  });
+
+  // Data State
   const [transactions, setTransactions] = useState<Transaction[]>(() => {
     const saved = localStorage.getItem('familyfinance_transactions_v2');
     return saved ? JSON.parse(saved) : INITIAL_TRANSACTIONS;
@@ -36,6 +50,24 @@ const App: React.FC = () => {
   useEffect(() => {
     localStorage.setItem('familyfinance_transactions_v2', JSON.stringify(transactions));
   }, [transactions]);
+
+  useEffect(() => {
+    if (user) {
+      localStorage.setItem('familyfinance_user', JSON.stringify(user));
+    } else {
+      localStorage.removeItem('familyfinance_user');
+    }
+  }, [user]);
+
+  const handleLoginSuccess = (email: string, name: string) => {
+    setUser({ email, name });
+  };
+
+  const handleLogout = () => {
+    googleLogout();
+    setUser(null);
+    setActiveTab('dashboard');
+  };
 
   // Derived State: Financial Summary (Calculates Settlement)
   const summary: FinancialSummary = useMemo(() => {
@@ -125,6 +157,11 @@ const App: React.FC = () => {
   // Colors for charts
   const COLORS = ['#6366f1', '#ec4899', '#10b981', '#f59e0b', '#8b5cf6', '#3b82f6'];
 
+  // Auth Guard
+  if (!user) {
+    return <LoginScreen onLoginSuccess={handleLoginSuccess} />;
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row text-slate-900">
       
@@ -137,6 +174,18 @@ const App: React.FC = () => {
           <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-violet-600">
             FamilyFinance
           </span>
+        </div>
+
+        <div className="px-6 py-4 border-b border-slate-100">
+          <div className="flex items-center gap-3">
+             <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 text-sm font-bold">
+                {user.name.charAt(0)}
+             </div>
+             <div className="overflow-hidden">
+                <p className="text-sm font-medium text-slate-800 truncate">{user.name}</p>
+                <p className="text-xs text-slate-400 truncate">{user.email}</p>
+             </div>
+          </div>
         </div>
 
         <div className="flex-1 px-4 py-6 space-y-2">
@@ -163,13 +212,21 @@ const App: React.FC = () => {
           </button>
         </div>
 
-        <div className="p-4 border-t border-slate-100 hidden md:block">
+        <div className="p-4 space-y-4">
             <div className={`rounded-xl p-4 text-white shadow-lg transition-colors ${summary.settlementBalance >= 0 ? 'bg-gradient-to-br from-emerald-500 to-teal-600' : 'bg-gradient-to-br from-rose-500 to-pink-600'}`}>
                 <p className="text-xs font-medium text-white/80 mb-1">
                     {summary.settlementBalance >= 0 ? "Partner owes you" : "You owe partner"}
                 </p>
                 <p className="text-2xl font-bold">${Math.abs(summary.settlementBalance).toFixed(2)}</p>
             </div>
+
+            <button 
+              onClick={handleLogout}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-red-50 hover:text-red-600 hover:border-red-100 transition-colors text-sm font-medium"
+            >
+              <LogOut size={16} />
+              Sign Out
+            </button>
         </div>
       </nav>
 
